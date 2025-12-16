@@ -114,7 +114,7 @@
     <h1>Character Information</h1>
 
     <div class="search-box">
-      <input id="characterInput" placeholder="Enter character name (e.g. メAeröCat)" />
+      <input id="characterInput" placeholder="Enter character name (e.g. メVyCat)" />
       <button onclick="searchCharacter()">Search</button>
     </div>
 
@@ -151,99 +151,118 @@
     }
 
     function renderCharacter(data) {
-      const c = data.characterInGame;
-      let html = "";
+        const output = document.getElementById("output");
 
-      /* BASIC INFO */
-      html += `
-        <div class="card">
-          <h2>${c.name}</h2>
-          <div class="grid">
-            <div><div class="label">Status</div>${data.status ?? "-"}</div>
-            <div><div class="label">Level</div>${data.lv}</div>
-          </div>
-        </div>
-      `;
-
-      /* CHARACTER DETAILS */
-      if (c.characterInGameDetails?.length) {
-        const d = c.characterInGameDetails[0];
-        html += `
-          <div class="card">
-            <h3>Current Character Details</h3>
-            <div class="grid">
-              <div><div class="label">World Group</div>${d.worldgroupName}</div>
-              <div><div class="label">World</div>${d.worldName}</div>
-              <div><div class="label">Class</div>${d._class}</div>
-              <div><div class="label">Clan</div>${d.clan ?? "-"}</div>
-              <div><div class="label">Date</div>${d.localDate}</div>
+        /* ===== SAFETY CHECK ===== */
+        if (
+            !data.characterInGame ||
+            data.status === "Deactive Player" ||
+            data.lv === "unknown"
+        ) {
+            output.innerHTML = `
+            <div class="card">
+                <h2>Character Not Available</h2>
+                <p class="error">
+                This character is inactive or does not exist in the system.
+                </p>
+                <p>
+                <strong>Status:</strong> ${data.status ?? "Unknown"}<br>
+                <strong>Level:</strong> ${data.lv ?? "Unknown"}
+                </p>
             </div>
-          </div>
+            `;
+            return;
+        }
+
+        /* ===== SAFE TO RENDER ===== */
+        const c = data.characterInGame;
+        let html = "";
+
+        /* BASIC INFO */
+        html += `
+            <div class="card">
+            <h2>${c.name}</h2>
+            <div class="grid">
+                <div><div class="label">Status</div>${data.status ?? "-"}</div>
+                <div><div class="label">Level</div>${data.lv}</div>
+            </div>
+            </div>
         `;
-      }
 
-      /* POWER HISTORY */
-      html += buildTable(
-        "Power History",
-        ["Date", "Power Score", "Rank"],
-        c.characterInGamePowers,
-        row => [row.localDate, row.powerScore, row.rank]
-      );
+        /* CHARACTER DETAILS */
+        if (Array.isArray(c.characterInGameDetails) && c.characterInGameDetails.length) {
+            const d = c.characterInGameDetails[0];
+            html += `
+            <div class="card">
+                <h3>Current Character Details</h3>
+                <div class="grid">
+                <div><div class="label">World Group</div>${d.worldgroupName}</div>
+                <div><div class="label">World</div>${d.worldName}</div>
+                <div><div class="label">Class</div>${d._class}</div>
+                <div><div class="label">Clan</div>${d.clan ?? "-"}</div>
+                <div><div class="label">Date</div>${d.localDate}</div>
+                </div>
+            </div>
+            `;
+        }
 
-      /* CLAN HISTORY */
-      html += buildTable(
-        "Clan History",
-        ["Date", "Clan From", "Clan To", "Server"],
-        c.characterInGameHistory,
-        row => [
-          row.date,
-          row.clanFrom,
-          row.clanTo,
-          `${row.serverFrom} → ${row.serverTo}`
-        ]
-      );
+        html += buildTable(
+            "Power History",
+            ["Date", "Power Score", "Rank"],
+            c.characterInGamePowers,
+            row => [row.localDate, row.powerScore, row.rank]
+        );
 
-      /* LEVEL TRACK */
-      html += buildTable(
-        "Level Track",
-        ["Date", "Old Level", "New Level"],
-        data.ingameLevelTrack,
-        row => [row.localDate, row.oldLevel, row.newLevel]
-      );
+        html += buildTable(
+            "Clan History",
+            ["Date", "Clan From", "Clan To", "Server"],
+            c.characterInGameHistory,
+            row => [
+            row.date,
+            row.clanFrom,
+            row.clanTo,
+            `${row.serverFrom} → ${row.serverTo}`
+            ]
+        );
 
-      /* NAME TRACK */
-      html += buildTable(
-        "Name History",
-        ["Date", "Old Name", "New Name"],
-        data.ingameNameTracks,
-        row => [row.localDate, row.oldName, row.newName]
-      );
+        html += buildTable(
+            "Level Track",
+            ["Date", "Old Level", "New Level"],
+            data.ingameLevelTrack,
+            row => [row.localDate, row.oldLevel, row.newLevel]
+        );
 
-      /* TYPE TRACK */
-      html += buildTable(
-        "Class Change History",
-        ["Date", "Old Type", "New Type"],
-        data.ingameTypeTracks,
-        row => [row.localDate, row.oldType, row.newType]
-      );
+        html += buildTable(
+            "Name History",
+            ["Date", "Old Name", "New Name"],
+            data.ingameNameTracks,
+            row => [row.localDate, row.oldName, row.newName]
+        );
 
-      /* NFT HISTORY */
-      html += buildTable(
-        "NFT History",
-        ["Date", "Name", "Level", "Power", "Price", "Event"],
-        data.nftHistoryDtos,
-        row => [
-          new Date(row.date).toLocaleString(),
-          row.name,
-          row.lvl,
-          row.power,
-          row.price,
-          row.eventType
-        ]
-      );
+        html += buildTable(
+            "Class Change History",
+            ["Date", "Old Type", "New Type"],
+            data.ingameTypeTracks,
+            row => [row.localDate, row.oldType, row.newType]
+        );
 
-      document.getElementById("output").innerHTML = html;
-    }
+        html += buildTable(
+            "NFT History",
+            ["Date", "Name", "Level", "Power", "Price", "Event"],
+            data.nftHistoryDtos,
+            row => [
+            new Date(row.date).toLocaleString(),
+            row.name,
+            row.lvl,
+            row.power,
+            row.price,
+            row.eventType
+            ]
+        );
+
+        output.innerHTML = html;
+        }
+
 
     function buildTable(title, headers, rows, rowMapper) {
       if (!rows || !rows.length) return "";
