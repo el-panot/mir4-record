@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Character Information</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <style>
+    body {
+      font-family: Arial, Helvetica, sans-serif;
+      background: #0f172a;
+      color: #e5e7eb;
+      margin: 0;
+      padding: 20px;
+    }
+
+    h1, h2, h3 {
+      margin-top: 0;
+      color: #f8fafc;
+    }
+
+    .container {
+      max-width: 1200px;
+      margin: auto;
+    }
+
+    .search-box {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 20px;
+    }
+
+    input {
+      flex: 1;
+      padding: 12px;
+      font-size: 16px;
+      border-radius: 6px;
+      border: none;
+      outline: none;
+    }
+
+    button {
+      padding: 12px 18px;
+      font-size: 16px;
+      border-radius: 6px;
+      border: none;
+      cursor: pointer;
+      background: #2563eb;
+      color: white;
+    }
+
+    button:hover {
+      background: #1d4ed8;
+    }
+
+    .card {
+      background: #020617;
+      border-radius: 8px;
+      padding: 16px;
+      margin-bottom: 20px;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap: 12px;
+    }
+
+    .label {
+      color: #94a3b8;
+      font-size: 13px;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 10px;
+      font-size: 14px;
+    }
+
+    th, td {
+      padding: 8px;
+      border-bottom: 1px solid #1e293b;
+      text-align: left;
+      white-space: nowrap;
+    }
+
+    th {
+      background: #020617;
+      position: sticky;
+      top: 0;
+    }
+
+    .scroll-table {
+      max-height: 350px;
+      overflow-y: auto;
+      border-radius: 6px;
+      border: 1px solid #1e293b;
+    }
+
+    .loading {
+      text-align: center;
+      color: #60a5fa;
+    }
+
+    .error {
+      color: #f87171;
+      font-weight: bold;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Character Information</h1>
+
+    <div class="search-box">
+      <input id="characterInput" placeholder="Enter character name (e.g. メAeröCat)" />
+      <button onclick="searchCharacter()">Search</button>
+    </div>
+
+    <div id="output"></div>
+  </div>
+
+  <script>
+    async function searchCharacter() {
+      const name = document.getElementById("characterInput").value.trim();
+      const output = document.getElementById("output");
+
+      if (!name) {
+        alert("Please enter a character name");
+        return;
+      }
+
+      output.innerHTML = '<p class="loading">Loading...</p>';
+
+      try {
+        const encodedName = encodeURIComponent(name);
+        const res = await fetch(
+          `https://analysis4nft.com:8080/api/v1/players/v2/${encodedName}`
+        );
+
+        if (!res.ok) {
+          throw new Error("Character not found");
+        }
+
+        const data = await res.json();
+        renderCharacter(data);
+      } catch (err) {
+        output.innerHTML = `<p class="error">${err.message}</p>`;
+      }
+    }
+
+    function renderCharacter(data) {
+      const c = data.characterInGame;
+      let html = "";
+
+      /* BASIC INFO */
+      html += `
+        <div class="card">
+          <h2>${c.name}</h2>
+          <div class="grid">
+            <div><div class="label">Status</div>${data.status ?? "-"}</div>
+            <div><div class="label">Level</div>${data.lv}</div>
+          </div>
+        </div>
+      `;
+
+      /* CHARACTER DETAILS */
+      if (c.characterInGameDetails?.length) {
+        const d = c.characterInGameDetails[0];
+        html += `
+          <div class="card">
+            <h3>Current Character Details</h3>
+            <div class="grid">
+              <div><div class="label">World Group</div>${d.worldgroupName}</div>
+              <div><div class="label">World</div>${d.worldName}</div>
+              <div><div class="label">Class</div>${d._class}</div>
+              <div><div class="label">Clan</div>${d.clan ?? "-"}</div>
+              <div><div class="label">Date</div>${d.localDate}</div>
+            </div>
+          </div>
+        `;
+      }
+
+      /* POWER HISTORY */
+      html += buildTable(
+        "Power History",
+        ["Date", "Power Score", "Rank"],
+        c.characterInGamePowers,
+        row => [row.localDate, row.powerScore, row.rank]
+      );
+
+      /* CLAN HISTORY */
+      html += buildTable(
+        "Clan History",
+        ["Date", "Clan From", "Clan To", "Server"],
+        c.characterInGameHistory,
+        row => [
+          row.date,
+          row.clanFrom,
+          row.clanTo,
+          `${row.serverFrom} → ${row.serverTo}`
+        ]
+      );
+
+      /* LEVEL TRACK */
+      html += buildTable(
+        "Level Track",
+        ["Date", "Old Level", "New Level"],
+        data.ingameLevelTrack,
+        row => [row.localDate, row.oldLevel, row.newLevel]
+      );
+
+      /* NAME TRACK */
+      html += buildTable(
+        "Name History",
+        ["Date", "Old Name", "New Name"],
+        data.ingameNameTracks,
+        row => [row.localDate, row.oldName, row.newName]
+      );
+
+      /* TYPE TRACK */
+      html += buildTable(
+        "Class Change History",
+        ["Date", "Old Type", "New Type"],
+        data.ingameTypeTracks,
+        row => [row.localDate, row.oldType, row.newType]
+      );
+
+      /* NFT HISTORY */
+      html += buildTable(
+        "NFT History",
+        ["Date", "Name", "Level", "Power", "Price", "Event"],
+        data.nftHistoryDtos,
+        row => [
+          new Date(row.date).toLocaleString(),
+          row.name,
+          row.lvl,
+          row.power,
+          row.price,
+          row.eventType
+        ]
+      );
+
+      document.getElementById("output").innerHTML = html;
+    }
+
+    function buildTable(title, headers, rows, rowMapper) {
+      if (!rows || !rows.length) return "";
+
+      return `
+        <div class="card">
+          <h3>${title}</h3>
+          <div class="scroll-table">
+            <table>
+              <thead>
+                <tr>${headers.map(h => `<th>${h}</th>`).join("")}</tr>
+              </thead>
+              <tbody>
+                ${rows
+                  .map(
+                    r =>
+                      `<tr>${rowMapper(r)
+                        .map(v => `<td>${v ?? "-"}</td>`)
+                        .join("")}</tr>`
+                  )
+                  .join("")}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      `;
+    }
+  </script>
+</body>
+</html>
